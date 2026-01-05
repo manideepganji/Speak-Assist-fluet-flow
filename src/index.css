@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Dark ambient theme for floating assistant */
+    --background: 220 20% 4%;
+    --foreground: 210 20% 95%;
+
+    --card: 220 20% 8%;
+    --card-foreground: 210 20% 95%;
+
+    --popover: 220 20% 8%;
+    --popover-foreground: 210 20% 95%;
+
+    --primary: 180 70% 50%;
+    --primary-foreground: 220 20% 4%;
+
+    --secondary: 220 15% 15%;
+    --secondary-foreground: 210 20% 90%;
+
+    --muted: 220 15% 12%;
+    --muted-foreground: 215 15% 55%;
+
+    --accent: 180 60% 45%;
+    --accent-foreground: 220 20% 4%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 210 20% 98%;
+
+    --border: 220 15% 18%;
+    --input: 220 15% 18%;
+    --ring: 180 70% 50%;
+
+    --radius: 1rem;
+
+    /* Orb-specific tokens */
+    --orb-bg: 220 25% 10%;
+    --orb-glow: 180 80% 55%;
+    --orb-glow-secondary: 200 70% 50%;
+    --orb-surface: 220 20% 15%;
+    --orb-text: 210 20% 95%;
+    --orb-text-muted: 215 15% 60%;
+
+    /* Glass effect */
+    --glass-bg: 220 25% 8% / 0.85;
+    --glass-border: 220 20% 25% / 0.3;
+    --glass-blur: 20px;
+
+    /* Animations */
+    --pulse-duration: 2s;
+    --transition-fast: 150ms;
+    --transition-normal: 300ms;
+    --transition-slow: 500ms;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .glass {
+    background: hsl(var(--glass-bg));
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid hsl(var(--glass-border));
+  }
+
+  .orb-glow {
+    box-shadow: 
+      0 0 20px hsl(var(--orb-glow) / 0.3),
+      0 0 40px hsl(var(--orb-glow) / 0.15),
+      0 0 60px hsl(var(--orb-glow) / 0.05),
+      inset 0 0 20px hsl(var(--orb-glow) / 0.1);
+  }
+
+  .orb-glow-intense {
+    box-shadow: 
+      0 0 30px hsl(var(--orb-glow) / 0.5),
+      0 0 60px hsl(var(--orb-glow) / 0.3),
+      0 0 90px hsl(var(--orb-glow) / 0.15),
+      inset 0 0 30px hsl(var(--orb-glow) / 0.2);
+  }
+
+  .text-glow {
+    text-shadow: 0 0 10px hsl(var(--orb-glow) / 0.5);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring var(--pulse-duration) cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-breathe {
+  animation: breathe var(--pulse-duration) ease-in-out infinite;
+}
