@@ -6,6 +6,7 @@ import { GrammarMistake } from "@/types/fluent-flow";
 
 interface TranscriptPanelProps {
   transcript: string;
+  correctedTranscript?: string;
   interimTranscript?: string;
   grammarMistakes?: GrammarMistake[];
   showHighlights?: boolean;
@@ -14,6 +15,7 @@ interface TranscriptPanelProps {
 
 const TranscriptPanel = ({
   transcript,
+  correctedTranscript = "",
   interimTranscript = "",
   grammarMistakes = [],
   showHighlights = true,
@@ -22,7 +24,8 @@ const TranscriptPanel = ({
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(transcript + interimTranscript);
+    const textToCopy = correctedTranscript || transcript + interimTranscript;
+    await navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -99,7 +102,14 @@ const TranscriptPanel = ({
       <div className="p-4 min-h-[120px] max-h-[300px] overflow-y-auto">
         {hasContent ? (
           <div className="text-foreground leading-relaxed">
-            {showHighlights && grammarMistakes.length > 0 ? (
+            {correctedTranscript ? (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Your speech:</p>
+                <p className="text-red-400 line-through">{transcript}</p>
+                <p className="text-sm text-muted-foreground">Corrected:</p>
+                <p className="text-green-400">{correctedTranscript}</p>
+              </div>
+            ) : showHighlights && grammarMistakes.length > 0 ? (
               <p
                 dangerouslySetInnerHTML={{ __html: getHighlightedText() }}
               />

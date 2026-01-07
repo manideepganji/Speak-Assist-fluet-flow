@@ -1,10 +1,13 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+// Added useEffect import: file previously crashed with "useEffect is not defined"
+// because the hook was used but not imported.
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Mic, Loader2, BookOpen, Lightbulb, MessageSquare, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import MicButton from "@/components/MicButton";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
+import useSpeechAnalysis from "@/hooks/useSpeechAnalysis";
 import { supabase } from "@/integrations/supabase/client";
 import { QAResponse } from "@/types/fluent-flow";
 
@@ -12,19 +15,37 @@ const QAMode = () => {
   const [question, setQuestion] = useState("");
   const [response, setResponse] = useState<QAResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isVoiceInput, setIsVoiceInput] = useState(false);
+  const [isSpeakingAnswer, setIsSpeakingAnswer] = useState(false);
+  const [speakAnswerFeedback, setSpeakAnswerFeedback] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isVoiceInput, setIsVoiceInput] = useState(false);
 
   const {
     transcript,
+    interimTranscript,
     isListening,
     isSupported,
+    error: speechError,
     startListening,
     stopListening,
     resetTranscript,
   } = useSpeechRecognition({ continuous: false, interimResults: true });
+  // interimTranscript is provided by the speech hook and used to
+  // determine when voice input has finished.
 
-  console.log("Q&A Speech Recognition Status:", { isSupported, isListening, transcript });
+  const { analysis, analyzeText, resetAnalysis } = useSpeechAnalysis();
+
+  console.log("Q&A Speech Recognition Status:", { isSupported, isListening, transcript, speechError });
+
+  // Trigger question handling when transcript updates (for voice input)
+  useEffect(() => {
+    if (transcript && !isListening && !interimTranscript) {
+      // Set question from voice input
+      setQuestion(transcript.trim());
+      // Auto-submit after voice input
+      handleAskQuestion(transcript.trim());
+    }
+  }, [transcript, isListening, interimTranscript]);
 
   // Update question from voice
   const handleMicClick = async () => {
@@ -86,9 +107,38 @@ const QAMode = () => {
     }
   }, [question]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSpeakAnswerMic = async () => {
+    if (isListening) {
+      stopListening();
+      // Analyze the spoken answer
+      if (transcript.trim()) {
+        analyzeText(transcript);
+        setTimeout(() => {
+          setSpeakAnswerFeedback({
+            grammarScore: analysis.grammarScore,
+            fluencyScore: analysis.fluencyScore,
+            confidenceScore: analysis.confidenceScore,
+            improvedVersion: analysis.correctedTranscript || "Good job! Try speaking more confidently next time.",
+          });
+        }, 500);
+      }
+    } else {
+      resetTranscript();
+      resetAnalysis();
+      setSpeakAnswerFeedback(null);
+      try {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+        startListening();
+      } catch (error) {
+        console.error("Microphone permission denied:", error);
+      }
+    }
+  };
+
+  // Handle form submit from text input
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
-    handleAskQuestion();
+    await handleAskQuestion();
   };
 
   return (
@@ -153,13 +203,13 @@ const QAMode = () => {
       </div>
 
       {/* Error Message */}
-      {error && (
+      {(error || speechError) && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="p-4 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm"
         >
-          {error}
+          {error || speechError}
         </motion.div>
       )}
 
@@ -219,12 +269,60 @@ const QAMode = () => {
 
             {/* Interview Answer */}
             <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30">
-              <div className="flex items-center gap-2 mb-2">
-                <MessageSquare className="w-4 h-4 text-green-400" />
-                <span className="text-sm text-green-400 font-medium">Interview-Ready Answer</span>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-green-400" />
+                  <span className="text-sm text-green-400 font-medium">Interview-Ready Answer</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsSpeakingAnswer(true)}
+                  disabled={isSpeakingAnswer}
+                >
+                  Speak This Answer
+                </Button>
               </div>
               <p className="text-foreground italic">"{response.interviewAnswer}"</p>
             </div>
+
+            {/* Speak Answer Feedback */}
+            {isSpeakingAnswer && (
+              <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30">
+                <p className="text-sm text-blue-400 font-medium mb-2">Practice Speaking the Answer</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Click the mic and speak the answer above. We'll analyze your delivery.
+                </p>
+                <MicButton
+                  isListening={isListening}
+                  isProcessing={false}
+                  size="md"
+                  onClick={handleSpeakAnswerMic}
+                />
+                {speakAnswerFeedback && (
+                  <div className="mt-4 space-y-2">
+                    <p className="text-sm font-medium text-foreground">Your Performance:</p>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="p-2 rounded bg-secondary/50">
+                        <p className="text-lg font-bold">{speakAnswerFeedback.grammarScore || 0}%</p>
+                        <p className="text-xs">Grammar</p>
+                      </div>
+                      <div className="p-2 rounded bg-secondary/50">
+                        <p className="text-lg font-bold">{speakAnswerFeedback.fluencyScore || 0}%</p>
+                        <p className="text-xs">Fluency</p>
+                      </div>
+                      <div className="p-2 rounded bg-secondary/50">
+                        <p className="text-lg font-bold">{speakAnswerFeedback.confidenceScore || 0}%</p>
+                        <p className="text-xs">Confidence</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {speakAnswerFeedback.improvedVersion || "Keep practicing to improve your delivery!"}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Related Topics */}
             {response.relatedTopics && response.relatedTopics.length > 0 && (

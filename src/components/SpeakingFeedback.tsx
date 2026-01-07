@@ -83,11 +83,11 @@ const SpeakingFeedback = ({ analysis, showDetails = true }: SpeakingFeedbackProp
             <p className="text-xs text-muted-foreground">Words per minute</p>
           </div>
           <span className={`ml-auto text-xs px-2 py-1 rounded-full ${
-            analysis.speakingSpeed >= 120 && analysis.speakingSpeed <= 150
-              ? "bg-green-500/20 text-green-500"
-              : "bg-yellow-500/20 text-yellow-500"
+            analysis.speakingSpeed < 90 ? "bg-red-500/20 text-red-500" :
+            analysis.speakingSpeed <= 120 ? "bg-green-500/20 text-green-500" :
+            "bg-yellow-500/20 text-yellow-500"
           }`}>
-            {analysis.speakingSpeed < 120 ? "Slow" : analysis.speakingSpeed > 150 ? "Fast" : "Good"}
+            {analysis.speakingSpeed < 90 ? "Slow" : analysis.speakingSpeed <= 120 ? "Normal" : "Fast"}
           </span>
         </div>
 

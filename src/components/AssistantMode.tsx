@@ -26,6 +26,7 @@ const AssistantMode = ({ settings }: AssistantModeProps) => {
     interimTranscript,
     isListening: isSpeechListening,
     isSupported,
+    error,
     startListening,
     stopListening,
     resetTranscript,
@@ -122,6 +123,15 @@ const AssistantMode = ({ settings }: AssistantModeProps) => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="text-center p-8">
+        <p className="text-destructive">Speech recognition error: {error}</p>
+        <p className="text-sm text-muted-foreground mt-2">Please check your microphone permissions and try again.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Description */}
@@ -144,6 +154,7 @@ const AssistantMode = ({ settings }: AssistantModeProps) => {
       {/* Transcript Panel */}
       <TranscriptPanel
         transcript={transcript}
+        correctedTranscript={analysis.correctedTranscript}
         interimTranscript={interimTranscript}
         grammarMistakes={analysis.grammarMistakes}
         showHighlights={true}
@@ -157,6 +168,43 @@ const AssistantMode = ({ settings }: AssistantModeProps) => {
       {/* Real-time Feedback */}
       {transcript && (
         <SpeakingFeedback analysis={analysis} showDetails={!isListening} />
+      )}
+
+      {/* Grammar & Speaking Guidance */}
+      {analysis.grammarMistakes.length > 0 && !isListening && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-4"
+        >
+          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30">
+            <h4 className="text-sm font-medium text-red-400 mb-2">Grammar Mistakes Found</h4>
+            <div className="space-y-2">
+              {analysis.grammarMistakes.map((mistake, i) => (
+                <div key={i} className="text-sm">
+                  <span className="text-red-400 line-through">{mistake.original}</span>
+                  {' → '}
+                  <span className="text-green-400">{mistake.correction}</span>
+                  <span className="text-muted-foreground ml-2">({mistake.explanation})</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30">
+            <h4 className="text-sm font-medium text-blue-400 mb-2">Corrected Sentence</h4>
+            <p className="text-foreground">{analysis.correctedTranscript}</p>
+          </div>
+
+          <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30">
+            <h4 className="text-sm font-medium text-green-400 mb-2">Suggestions for Better Speaking</h4>
+            <ul className="space-y-1 text-sm text-muted-foreground">
+              <li>• Use clearer sentence structure to improve flow.</li>
+              <li>• Practice pronouncing words more distinctly.</li>
+              <li>• Add pauses between main ideas for emphasis.</li>
+            </ul>
+          </div>
+        </motion.div>
       )}
 
       {/* AI Suggestions */}

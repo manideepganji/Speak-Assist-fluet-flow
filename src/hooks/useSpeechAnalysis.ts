@@ -14,6 +14,17 @@ interface UseSpeechAnalysisReturn {
   isAnalyzing: boolean;
 }
 
+// Add basic punctuation to transcript
+const addPunctuation = (text: string): string => {
+  let punctuated = text;
+  // Add periods at end of sentences if missing
+  punctuated = punctuated.replace(/([.!?])\s*([A-Z])/g, "$1 $2"); // Ensure space after punctuation
+  punctuated = punctuated.replace(/(\w)\s*$/g, "$1."); // Add period at end if missing
+  // Capitalize first letter of sentences
+  punctuated = punctuated.replace(/(^\s*\w|\.\s*\w)/g, (match) => match.toUpperCase());
+  return punctuated;
+};
+
 // Count words in text
 const countWords = (text: string): number => {
   return text.trim().split(/\s+/).filter(word => word.length > 0).length;
@@ -125,6 +136,29 @@ const GRAMMAR_PATTERNS: { pattern: RegExp; correction: string; explanation: stri
     correction: "they were",
     explanation: "Use 'were' with plural subjects",
   },
+  // Missing articles
+  {
+    pattern: /\b(i am) (student|teacher|doctor|engineer)\b/gi,
+    correction: "$1 a $2",
+    explanation: "Add article 'a' before singular countable nouns",
+  },
+  {
+    pattern: /\b(it is) (book|car|house)\b/gi,
+    correction: "$1 a $2",
+    explanation: "Add article 'a' before singular countable nouns",
+  },
+  // Wrong verb usage
+  {
+    pattern: /\b(i) (go)\b/gi,
+    correction: "$1 went",
+    explanation: "Use past tense for completed actions",
+  },
+  // Incorrect sentence structure
+  {
+    pattern: /\b(because i)\b/gi,
+    correction: "because I",
+    explanation: "Capitalize 'I' in sentences",
+  },
 ];
 
 // Detect grammar mistakes
@@ -147,6 +181,16 @@ const detectGrammarMistakes = (text: string): GrammarMistake[] => {
   return mistakes;
 };
 
+// Generate corrected transcript by applying corrections
+const generateCorrectedTranscript = (text: string, mistakes: GrammarMistake[]): string => {
+  let corrected = text;
+  mistakes.forEach(mistake => {
+    const regex = new RegExp(`\\b${mistake.original}\\b`, "gi");
+    corrected = corrected.replace(regex, mistake.correction);
+  });
+  return corrected;
+};
+
 // Calculate speaking speed
 const calculateSpeed = (wordCount: number, durationSeconds: number): number => {
   if (durationSeconds <= 0) return 0;
@@ -158,29 +202,34 @@ const calculateScores = (
   text: string,
   fillerWords: FillerWordInstance[],
   grammarMistakes: GrammarMistake[],
-  wordCount: number
-): { grammar: number; fluency: number; confidence: number } => {
+  wordCount: number,
+  speed: number
+): { grammar: number; fluency: number; confidence: number; pronunciation: number } => {
   const totalFillers = fillerWords.reduce((sum, f) => sum + f.count, 0);
   
-  // Grammar score: deduct points per mistake
-  const grammarDeduction = Math.min(grammarMistakes.length * 10, 50);
-  const grammarScore = Math.max(100 - grammarDeduction, 50);
+  // Grammar score: deduct points per mistake, never 100 if mistakes exist
+  const grammarDeduction = Math.min(grammarMistakes.length * 15, 80);
+  const grammarScore = Math.max(100 - grammarDeduction, 20);
   
   // Fluency score: based on filler word ratio
   const fillerRatio = wordCount > 0 ? totalFillers / wordCount : 0;
-  const fluencyScore = Math.max(100 - (fillerRatio * 200), 50);
+  const fluencyScore = Math.max(100 - (fillerRatio * 300), 20);
   
-  // Confidence score: combination of factors
+  // Confidence score: based on pauses (estimated), WPM, sentence completion
   const sentenceCount = (text.match(/[.!?]+/g) || []).length || 1;
   const avgWordsPerSentence = wordCount / sentenceCount;
   const hasGoodLength = avgWordsPerSentence >= 8 && avgWordsPerSentence <= 25;
-  const confidenceBase = hasGoodLength ? 80 : 65;
-  const confidenceScore = Math.min(confidenceBase + (wordCount > 50 ? 15 : 0), 95);
+  const wpmBonus = speed >= 90 && speed <= 120 ? 20 : speed < 90 ? 10 : 5;
+  const confidenceScore = Math.min(20 + wpmBonus + (hasGoodLength ? 20 : 0), 95);
+  
+  // Pronunciation score: dynamic based on word clarity (estimated from fillers and speed)
+  const pronunciationScore = Math.max(100 - (fillerRatio * 200) - (speed > 150 ? 20 : 0), 40);
   
   return {
     grammar: Math.round(grammarScore),
     fluency: Math.round(fluencyScore),
     confidence: Math.round(confidenceScore),
+    pronunciation: Math.round(pronunciationScore),
   };
 };
 
@@ -205,7 +254,10 @@ export const useSpeechAnalysis = (): UseSpeechAnalysisReturn => {
     const fillerWords = detectFillerWords(text);
     const grammarMistakes = detectGrammarMistakes(text);
     const speed = calculateSpeed(wordCount, duration);
-    const scores = calculateScores(text, fillerWords, grammarMistakes, wordCount);
+    const scores = calculateScores(text, fillerWords, grammarMistakes, wordCount, speed);
+    
+    // Generate corrected transcript
+    const correctedTranscript = addPunctuation(generateCorrectedTranscript(text, grammarMistakes));
     
     // Generate suggestions
     const suggestions: string[] = [];
@@ -219,9 +271,9 @@ export const useSpeechAnalysis = (): UseSpeechAnalysisReturn => {
       suggestions.push(`Fix grammar: "${grammarMistakes[0].original}" → "${grammarMistakes[0].correction}"`);
     }
     
-    if (speed > 160) {
+    if (speed > 120) {
       suggestions.push("Slow down your speaking pace for clarity");
-    } else if (speed < 100 && speed > 0) {
+    } else if (speed < 90 && speed > 0) {
       suggestions.push("Try to speak a bit faster for better flow");
     }
     
@@ -230,9 +282,10 @@ export const useSpeechAnalysis = (): UseSpeechAnalysisReturn => {
     }
 
     setAnalysis({
-      transcript: text,
+      transcript: addPunctuation(text),
+      correctedTranscript,
       grammarScore: scores.grammar,
-      pronunciationScore: 85, // Estimated (needs audio analysis)
+      pronunciationScore: scores.pronunciation,
       fluencyScore: scores.fluency,
       confidenceScore: scores.confidence,
       speakingSpeed: speed,

@@ -4,6 +4,7 @@ export type AppMode = "assistant" | "interview" | "learning" | "qa";
 
 export interface SpeechAnalysis {
   transcript: string;
+  correctedTranscript: string; // Added for showing corrected version
   grammarScore: number; // 0-100
   pronunciationScore: number; // 0-100
   fluencyScore: number; // 0-100
@@ -90,6 +91,7 @@ export interface UserSettings {
 // Default values
 export const DEFAULT_SPEECH_ANALYSIS: SpeechAnalysis = {
   transcript: "",
+  correctedTranscript: "",
   grammarScore: 0,
   pronunciationScore: 0,
   fluencyScore: 0,
@@ -114,7 +116,8 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
 export const FILLER_WORDS = [
   "uh", "um", "like", "you know", "basically", "actually", "literally",
   "so", "well", "right", "okay", "I mean", "kind of", "sort of",
-  "you see", "honestly", "obviously", "essentially"
+  "you see", "honestly", "obviously", "essentially", "totally", "seriously",
+  "absolutely", "definitely", "probably", "maybe", "perhaps", "kinda", "sorta"
 ];
 
 // Interview question categories

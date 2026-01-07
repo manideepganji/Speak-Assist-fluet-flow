@@ -76,6 +76,7 @@ const LearningMode = () => {
     interimTranscript,
     isListening,
     isSupported,
+    error,
     startListening,
     stopListening,
     resetTranscript,
@@ -171,6 +172,15 @@ const LearningMode = () => {
     return (
       <div className="text-center p-8">
         <p className="text-destructive">Speech recognition is not supported in your browser.</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center p-8">
+        <p className="text-destructive">Speech recognition error: {error}</p>
+        <p className="text-sm text-muted-foreground mt-2">Please check your microphone permissions and try again.</p>
       </div>
     );
   }
@@ -351,34 +361,80 @@ const LearningMode = () => {
 
               <SpeakingFeedback analysis={analysis} showDetails={true} />
 
-              <div className="flex gap-4">
-                <Button onClick={handleSaveSession} variant="outline" className="flex-1">
-                  Save Session
-                </Button>
-                <Button onClick={handleNewTopic} className="flex-1">
-                  <Shuffle className="w-4 h-4 mr-2" />
-                  New Topic
-                </Button>
-              </div>
-            </motion.div>
-          )}
+                  {/* Fluency Analysis */}
+                  <div className="p-4 rounded-xl bg-card border border-border space-y-3">
+                    <h4 className="text-sm font-medium text-foreground">Fluency Analysis</h4>
 
-          {/* Live Feedback */}
-          {isListening && transcript && !sessionComplete && (
-            <SpeakingFeedback analysis={analysis} showDetails={false} />
-          )}
+                    {/* What was wrong */}
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-red-400">What you said incorrectly:</p>
+                      <p className="text-sm text-foreground bg-red-500/10 p-2 rounded">{transcript}</p>
+                    </div>
 
-          {/* Back Button */}
-          <Button
-            variant="ghost"
-            onClick={() => {
-              stopListening();
-              setIsSessionActive(false);
-              setCurrentTopic(null);
-            }}
-          >
-            ← Back to Topics
-          </Button>
+                    {/* Corrected sentence */}
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-blue-400">Corrected sentence:</p>
+                      <p className="text-sm text-foreground bg-blue-500/10 p-2 rounded">{analysis.correctedTranscript}</p>
+                    </div>
+
+                    {/* Improved fluent version */}
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-green-400">Improved fluent version:</p>
+                      <p className="text-sm text-foreground bg-green-500/10 p-2 rounded italic">
+                        {analysis.correctedTranscript || "Practice speaking more smoothly by connecting your ideas naturally."}
+                      </p>
+                    </div>
+
+                    {/* Personalized fluency tips */}
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-purple-400">Personalized Fluency Tips:</p>
+                      <ul className="space-y-1 text-sm text-muted-foreground">
+                        {analysis.fillerWords.length > 0 && (
+                          <li>• Reduce filler words like {analysis.fillerWords.slice(0, 2).map(f => `"${f.word}"`).join(", ")} to sound more confident.</li>
+                        )}
+                        {analysis.speakingSpeed < 90 && (
+                          <li>• Try speaking a bit faster to maintain listener engagement.</li>
+                        )}
+                        {analysis.speakingSpeed > 120 && (
+                          <li>• Slow down slightly to improve clarity and reduce errors.</li>
+                        )}
+                        {analysis.grammarMistakes.length > 0 && (
+                          <li>• Work on sentence structure to flow more naturally.</li>
+                        )}
+                        <li>• Practice pausing briefly between main ideas for better rhythm.</li>
+                        <li>• Focus on connecting words smoothly without abrupt stops.</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <Button onClick={handleSaveSession} variant="outline" className="flex-1">
+                      Save Session
+                    </Button>
+                    <Button onClick={handleNewTopic} className="flex-1">
+                      <Shuffle className="w-4 h-4 mr-2" />
+                      New Topic
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Live Feedback */}
+              {isListening && transcript && !sessionComplete && (
+                <SpeakingFeedback analysis={analysis} showDetails={false} />
+              )}
+
+              {/* Back Button */}
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  stopListening();
+                  setIsSessionActive(false);
+                  setCurrentTopic(null);
+                }}
+              >
+                ← Back to Topics
+              </Button>
         </motion.div>
       )}
     </div>
